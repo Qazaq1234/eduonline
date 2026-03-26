@@ -1,33 +1,127 @@
-<!doctype html><html lang="kk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Edukz Online</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="edukz_config.example.js"></script>
-<style>
-body{margin:0;font-family:Inter,Arial,sans-serif;background:#f4f7fb;color:#112}.wrap{max-width:1100px;margin:0 auto;padding:18px}.card{background:#fff;border:1px solid #dde6f0;border-radius:18px;padding:16px;margin-bottom:16px;box-shadow:0 6px 24px rgba(15,23,42,.05)}.grid{display:grid;gap:12px}.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g4{grid-template-columns:repeat(4,minmax(0,1fr))}.tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{padding:10px 14px;border-radius:12px;border:1px solid #d8e0ea;background:#fff}.tabs .active{background:#245cff;color:#fff}.hidden{display:none}input,select,button,textarea{font:inherit}input,select,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid #d8e0ea}.btn{background:#245cff;color:#fff;border:0;padding:11px 14px;border-radius:12px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}.pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#eef4ff;color:#245cff;font-size:12px}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #e6edf5;text-align:left}.muted{color:#6a778b}.menu{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.menu button{padding:10px 12px;border-radius:12px;border:1px solid #d8e0ea;background:#fff}.menu .active{background:#245cff;color:#fff}@media(max-width:800px){.g2,.g4{grid-template-columns:1fr}.top{flex-direction:column;align-items:flex-start}}
-</style></head><body><div class="wrap">
-<div id="auth" class="card"><h1>Edukz Online Portal</h1><div class="tabs"><button class="active" data-tab="register">Оқушы тіркелуі</button><button data-tab="login">Оқушы кіру</button></div>
-<div id="tab-register" class="grid g2"><input id="reg-name" placeholder="Аты"><input id="reg-phone" placeholder="Телефон"><input id="reg-email" placeholder="Email"><select id="reg-center"></select><input id="reg-extra" placeholder="Қосымша кім ол"><input id="reg-pass" type="password" placeholder="Құпия сөз"><button class="btn" id="register-btn">Тіркелу</button></div>
-<div id="tab-login" class="grid g2 hidden"><input id="login-email" placeholder="Email"><input id="login-pass" type="password" placeholder="Құпия сөз"><button class="btn" id="login-btn">Кіру</button></div>
-<div id="auth-msg" class="muted"></div></div>
-<div id="app" class="hidden"><div class="top"><div><h1>EduKZ Student</h1><div id="student-meta" class="muted"></div></div><div><span class="pill" id="center-pill"></span> <button class="btn" id="logout-btn">Шығу</button></div></div>
-<div class="menu"><button data-section="home" class="active">Басты бет</button><button data-section="courses">Курстар</button><button data-section="lessons">Сабақ</button><button data-section="payments">Төлемдер</button></div><div id="content"></div></div></div>
-<script>
-const {createClient}=supabase; const cfg=window.EDUKZ_CONFIG||{}; const sb=createClient(cfg.supabaseUrl,cfg.supabaseAnonKey); let state={user:null,onlineStudent:null,enrollments:[],section:'home'};
-const qs=i=>document.getElementById(i); const money=v=>new Intl.NumberFormat('kk-KZ').format(Number(v||0))+' ₸';
-function msg(t){qs('auth-msg').textContent=t||''}
-async function loadCenters(){const {data}=await sb.from('centers').select('id,center_name').eq('is_active',true).order('center_name'); qs('reg-center').innerHTML='<option value="">Орталық</option>'+(data||[]).map(c=>`<option value="${c.id}">${c.center_name}</option>`).join('');}
-async function registerStudent(){msg(''); const email=qs('reg-email').value.trim(), password=qs('reg-pass').value.trim(); const {data,error}=await sb.auth.signUp({email,password}); if(error) return msg(error.message); const uid=data.user.id; const centerId=qs('reg-center').value||null; const {error:e2}=await sb.from('online_students').insert({student_user_id:uid,center_id:centerId,full_name:qs('reg-name').value,phone:qs('reg-phone').value,email,center_name:qs('reg-center').selectedOptions[0]?.textContent||'',extra_info:qs('reg-extra').value}); if(e2) return msg(e2.message); msg('Тіркелді. Енді кіріңіз.');}
-async function loginStudent(){const {error}=await sb.auth.signInWithPassword({email:qs('login-email').value.trim(),password:qs('login-pass').value.trim()}); if(error) return msg(error.message); await loadApp();}
-async function loadApp(){const user=(await sb.auth.getUser()).data.user; if(!user) return; state.user=user; const {data:os,error}=await sb.from('online_students').select('*, centers(center_name,payment_link)').eq('student_user_id',user.id).single(); if(error) return msg(error.message); state.onlineStudent=os; qs('auth').classList.add('hidden'); qs('app').classList.remove('hidden'); qs('student-meta').textContent=`${os.full_name} • ${os.email}`; qs('center-pill').textContent=os.centers?.center_name||os.center_name||'Орталықсыз'; render('home');}
-async function render(section){state.section=section; document.querySelectorAll('.menu button').forEach(b=>b.classList.toggle('active',b.dataset.section===section)); const box=qs('content');
-if(section==='home'){ box.innerHTML=`<div class="card"><h3>Қош келдіңіз</h3><div>Курсты сатып алғанда автоматты түрде төлем ссылкасына өтесіз. Төлемнен кейін CRM жақтан доступ ашылады.</div></div>`; return; }
-if(section==='courses'){ const {data:courses}=await sb.from('online_courses').select('*').or(`center_id.eq.${state.onlineStudent.center_id},center_id.is.null`).order('created_at',{ascending:false}); const {data:ens}=await sb.from('online_enrollments').select('*, online_courses(title)').eq('online_student_id',state.onlineStudent.id); state.enrollments=ens||[]; box.innerHTML=`<div class="card"><h3>Менің курстарым</h3><table><tr><th>Курс</th><th>Мұғалім</th><th>Төлем</th><th>Статус</th><th>Әрекет</th></tr>${(courses||[]).map(c=>{const e=(ens||[]).find(x=>x.course_id===c.id); const status=e?`${e.payment_status} / ${e.access_status}`:'Жаңа'; return `<tr><td>${c.title}</td><td>${c.teacher_name||''}</td><td>${money(c.price)}</td><td>${status}</td><td>${!e?`<button onclick="buyCourse('${c.id}',${c.price||0})">Сатып алу</button>`:e.access_status==='Жабық'?`<button onclick="paySent('${e.id}')">Доступ жіберу</button>`:'Ашық'}</td></tr>`;}).join('')}</table></div>`; return; }
-if(section==='lessons'){ const {data:ens}=await sb.from('online_enrollments').select('*, online_courses(title)').eq('online_student_id',state.onlineStudent.id).eq('access_status','Ашық'); if(!ens?.length){ box.innerHTML='<div class="card"><h3>Сабақ бөлімі жабық</h3><div>Алдымен доступ ашылуы керек.</div></div>'; return; }
- const ids=ens.map(e=>e.course_id); const {data:mods}=await sb.from('online_modules').select('*').in('course_id',ids); const modIds=mods.map(m=>m.id); const {data:lessons}=modIds.length?await sb.from('online_lessons').select('*').in('module_id',modIds):{data:[]}; box.innerHTML=`<div class="card"><h3>Сабақтар</h3><table><tr><th>Сабақ</th><th>Ұзақтығы</th><th>Ашу</th></tr>${(lessons||[]).map(l=>`<tr><td>${l.title}</td><td>${l.duration_text||''}</td><td>${l.youtube_url?`<a target="_blank" href="${l.youtube_url}">YouTube</a>`:l.file_url?`<a target="_blank" href="${l.file_url}">Файл</a>`:l.external_url?`<a target="_blank" href="${l.external_url}">Ссылка</a>`:'-'}</td></tr>`).join('')}</table></div>`; return; }
-if(section==='payments'){ const {data}=await sb.from('online_enrollments').select('*, online_courses(title)').eq('online_student_id',state.onlineStudent.id).order('requested_at',{ascending:false}); box.innerHTML=`<div class="card"><h3>Төлемдер</h3><table><tr><th>Курс</th><th>Сома</th><th>Төлем</th><th>Доступ</th><th>Күні</th></tr>${(data||[]).map(x=>`<tr><td>${x.online_courses?.title||''}</td><td>${money(x.payment_amount)}</td><td>${x.payment_status}</td><td>${x.access_status}</td><td>${new Date(x.requested_at).toLocaleString()}</td></tr>`).join('')}</table></div>`; return; }
-}
-async function buyCourse(courseId,price){ const {error}=await sb.from('online_enrollments').insert({center_id:state.onlineStudent.center_id,online_student_id:state.onlineStudent.id,course_id:courseId,payment_amount:price,payment_status:'Күтуде',access_status:'Жабық'}); if(error){alert(error.message); return;} const paymentLink=state.onlineStudent.centers?.payment_link; if(paymentLink) window.open(paymentLink,'_blank'); await render('courses'); }
-async function paySent(enrollmentId){ const {error}=await sb.from('online_enrollments').update({payment_status:'Төленді деп жіберді'}).eq('id',enrollmentId); if(error) alert(error.message); else {alert('CRM порталға доступ сұранысы түсті'); render('payments');}}
-window.buyCourse=buyCourse; window.paySent=paySent;
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('active')); b.classList.add('active'); qs('tab-register').classList.toggle('hidden',b.dataset.tab!=='register'); qs('tab-login').classList.toggle('hidden',b.dataset.tab!=='login');});
-document.querySelectorAll('.menu button').forEach(b=>b.onclick=()=>render(b.dataset.section)); qs('register-btn').onclick=registerStudent; qs('login-btn').onclick=loginStudent; qs('logout-btn').onclick=async()=>{await sb.auth.signOut(); location.reload()};
-(async()=>{await loadCenters(); const ses=(await sb.auth.getSession()).data.session; if(ses) loadApp();})();
-</script></body></html>
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>EdukZ Online Portal</title>
+  <style>
+    :root{
+      --bg:#f5f7fb; --card:#fff; --line:#e8edf5; --text:#111827; --muted:#6b7280;
+      --brand:#2563eb; --brand2:#4f46e5; --ok:#16a34a; --warn:#d97706; --shadow:0 14px 40px rgba(17,24,39,.08);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(180deg,#f7fbff 0%,var(--bg) 100%);color:var(--text)}
+    .hero{max-width:1220px;margin:26px auto;padding:0 16px}
+    .hero-box,.card{background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow)}
+    .hero-box{background:linear-gradient(135deg,#0f172a,#1d4ed8);color:#fff;padding:30px;margin-bottom:16px}
+    .hero-box h1{font-size:54px;line-height:1.02;margin:0 0 10px}
+    .hero-box p{margin:0;color:#dbeafe;font-size:20px;line-height:1.5}
+    .card{padding:20px;margin-bottom:16px}
+    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    .tab,.btn{border:none;border-radius:14px;padding:12px 16px;font:inherit;font-weight:800;cursor:pointer}
+    .tab{background:#fff;border:1px solid var(--line);color:#111827}
+    .tab.active,.btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff}
+    .btn.secondary{background:#fff;border:1px solid var(--line)}
+    .btn.ok{background:var(--ok);color:#fff}
+    .grid{display:grid;gap:16px}
+    .g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+    .g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+    .input,.select{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:14px;margin-top:8px;font:inherit}
+    .course{border:1px solid var(--line);border-radius:18px;padding:16px;background:#fff}
+    .muted{color:var(--muted)}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#eef2ff;color:#4338ca;font-size:12px;font-weight:700}
+    .locked{color:#d97706;font-weight:700}
+    .open{color:#16a34a;font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="hero-box">
+      <h1>EdukZ Online Portal</h1>
+      <p>Курсты таңдау, төлем статусы, доступ сұрау және сабаққа кіру үшін ыңғайлы student portal.</p>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" data-auth="register">Оқушы тіркелуі</button>
+        <button class="tab" data-auth="login">Оқушы кіруі</button>
+      </div>
+
+      <div id="registerBox">
+        <div class="grid g3">
+          <label>Аты<input class="input" /></label>
+          <label>Телефон<input class="input" /></label>
+          <label>Email<input class="input" /></label>
+          <label>Орталық<input class="input" /></label>
+          <label>Қосымша кім ол<input class="input" /></label>
+          <label>Құпия сөз<input class="input" type="password" /></label>
+        </div>
+        <p style="margin-top:16px"><button class="btn primary">Тіркелу</button></p>
+      </div>
+
+      <div id="loginBox" style="display:none">
+        <div class="grid g2">
+          <label>Email<input class="input" /></label>
+          <label>Құпия сөз<input class="input" type="password" /></label>
+        </div>
+        <p style="margin-top:16px"><button class="btn primary">Кіру</button></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:24px;font-weight:900;margin-bottom:12px">Бөлімдер</div>
+      <div class="grid g4">
+        <div class="course"><strong>Басты бет</strong><div class="muted" style="margin-top:8px">Статус, курс саны, төлем статусы</div></div>
+        <div class="course"><strong>Курстар</strong><div class="muted" style="margin-top:8px">Менің курстарым, сатып алу, доступ жіберу</div></div>
+        <div class="course"><strong>Сабақ</strong><div class="muted" style="margin-top:8px">Доступ ашылмайынша жабық тұрады</div></div>
+        <div class="course"><strong>Төлемдер</strong><div class="muted" style="margin-top:8px">Қай курсты алғаны мен статусы</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:24px;font-weight:900;margin-bottom:12px">Курстар</div>
+      <div class="grid g2">
+        <div class="course">
+          <div class="pill">Менің курстарым</div>
+          <h3>Робототехника</h3>
+          <p class="muted">Мұғалім: Teacher</p>
+          <p>Төлем: 44 444 ₸</p>
+          <p>Статус: <span class="locked">Доступ күтілуде</span></p>
+          <p><button class="btn secondary">Доступ жіберу</button></p>
+        </div>
+        <div class="course">
+          <div class="pill">Ашық курс</div>
+          <h3>Химия</h3>
+          <p class="muted">Мұғалім: Teacher</p>
+          <p>Төлем: 39 999 ₸</p>
+          <p>Статус: <span class="open">Ашық</span></p>
+          <p><button class="btn ok">Сабаққа кіру</button></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:24px;font-weight:900;margin-bottom:12px">Төлемдер</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="text-align:left;color:#6b7280"><th style="padding:10px;border-bottom:1px solid #e5e7eb">Курс</th><th style="padding:10px;border-bottom:1px solid #e5e7eb">Сома</th><th style="padding:10px;border-bottom:1px solid #e5e7eb">Статус</th></tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:10px;border-bottom:1px solid #e5e7eb">Робототехника</td><td style="padding:10px;border-bottom:1px solid #e5e7eb">44 444 ₸</td><td style="padding:10px;border-bottom:1px solid #e5e7eb" class="locked">Күтілуде</td></tr>
+          <tr><td style="padding:10px;border-bottom:1px solid #e5e7eb">Химия</td><td style="padding:10px;border-bottom:1px solid #e5e7eb">39 999 ₸</td><td style="padding:10px;border-bottom:1px solid #e5e7eb" class="open">Ашық</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const tabs=document.querySelectorAll('.tab');
+    tabs.forEach(t=>t.addEventListener('click',()=>{
+      tabs.forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById('registerBox').style.display=t.dataset.auth==='register'?'block':'none';
+      document.getElementById('loginBox').style.display=t.dataset.auth==='login'?'block':'none';
+    }));
+  </script>
+</body>
+</html>
