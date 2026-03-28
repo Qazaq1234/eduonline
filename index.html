@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="icon" href="favicon.ico">
   <title>EdukZ Online Live</title>
-  <link rel="icon" href="/favicon.ico">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root{
@@ -269,7 +269,7 @@
     }
 
     async function loadTenants(){
-      const res = await sb.from('tenants').select('*').in('status',['active','pending']).order('created_at',{ascending:false});
+      const res = await sb.from('tenants').select('*').eq('status','active').eq('online_enabled', true).order('created_at',{ascending:false});
       state.tenants = res.data || [];
       document.getElementById('regTenant').innerHTML = ['<option value="">Орталық таңдаңыз</option>'].concat(
         state.tenants.map(t=>`<option value="${t.id}">${esc(t.name)} — ${esc(t.city || '')}</option>`)
@@ -327,6 +327,8 @@
       if(res.error) return authNotice('Email немесе құпия сөз қате', 'err');
 
       studentSession = res.data;
+      const tenantCheck = await sb.from('tenants').select('*').eq('id', studentSession.tenant_id).single();
+      if(tenantCheck.error || tenantCheck.data.status !== 'active' || !tenantCheck.data.online_enabled){ studentSession = null; return authNotice('Бұл орталыққа online доступ жабық.', 'err'); }
       document.getElementById('authView').classList.add('hidden');
       document.getElementById('portalView').classList.remove('hidden');
       await loadStudentData();
@@ -622,3 +624,4 @@
   </script>
 </body>
 </html>
+
