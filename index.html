@@ -132,6 +132,7 @@
 
     <main class="main">
       <div id="topNotice" class="notice hidden"></div>
+      <div id="lockNotice" class="notice err hidden"></div>
       <div class="topbar card">
         <div>
           <div id="pageTitle" style="font-size:30px;font-weight:900">Басты бет</div>
@@ -200,6 +201,8 @@
     let studentSession = null;
     let currentCourse = null;
     let currentLesson = null;
+    let accessLocked = false;
+    let lockReason = '';
     let state = {
       tenants: [], onlineStudents: [], students: [], onlineCourses: [], onlineModules: [], onlineLessons: [],
       onlinePayments: [], onlineProgress: [], onlineJournal: [], onlineEnrollments: [], onlineAccessRequests: []
@@ -375,11 +378,27 @@
       if(res.error) return authNotice('Email немесе құпия сөз қате', 'err');
 
       studentSession = res.data;
-      const tenantCheck = await sb.from('tenants').select('*').eq('id', studentSession.tenant_id).single();
-      if(tenantCheck.error || tenantCheck.data.status !== 'active' || !tenantCheck.data.online_enabled){ studentSession = null; return authNotice('Бұл орталыққа online доступ жабық.', 'err'); }
+      const [tenantCheck, ownerCheck] = await Promise.all([
+        sb.from('tenants').select('*').eq('id', studentSession.tenant_id).single(),
+        sb.from('owner_controls').select('*').eq('tenant_id', studentSession.tenant_id).limit(1).maybeSingle()
+      ]);
+
+      if(tenantCheck.error || !tenantCheck.data){
+        studentSession = null;
+        return authNotice('Орталық табылмады', 'err');
+      }
+
+      accessLocked = false;
+      lockReason = '';
+      if(tenantCheck.data.status !== 'active' || !tenantCheck.data.online_enabled || !ownerCheck.data?.opened){
+        accessLocked = true;
+        lockReason = 'Owner online доступты жапқан. Кіруге болады, бірақ оқу мен сұраныс уақытша жабық.';
+      }
+
       document.getElementById('authView').classList.add('hidden');
       document.getElementById('portalView').classList.remove('hidden');
       await loadStudentData();
+      applyLockedUi();
     }
 
     async function logout(){
@@ -485,6 +504,7 @@
     }
 
     async function openLesson(lessonId){
+      if(accessLocked) return notice(lockReason || 'Қарау режимі', 'err');
       currentLesson = lessonId;
       const lesson = state.onlineLessons.find(x=>x.id === lessonId);
       const courseId = currentCourse;
@@ -513,6 +533,7 @@
     }
 
     async function markLessonCompleted(lessonId){
+      if(accessLocked) return notice(lockReason || 'Қарау режимі', 'err');
       const crmStudent = state.students[0];
       const existing = state.onlineProgress.find(x=>x.lesson_id === lessonId);
       if(existing){
@@ -672,4 +693,3 @@
   </script>
 </body>
 </html>
-
