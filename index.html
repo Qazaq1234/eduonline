@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="icon" href="favicon.ico">
-  <title>EdukZ Online Live</title>
+  <title>EdukZ Online Premium</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root{
@@ -74,7 +74,7 @@
 <body>
   <div id="authView" class="auth-shell">
     <div class="panel hero">
-      <h1>EdukZ Online Portal</h1>
+      <h1>EdukZ Online Premium</h1>
       <p>Оқушыға арналған live portal. Курс таңдау, төлем сұранысы, доступ күту, сабақ оқу және төлем статустарын көру.</p>
     </div>
 
@@ -268,15 +268,20 @@
       }catch{return ''}
     }
 
-    async function loadTenants(){
-      const res = await sb.from('tenants').select('*').eq('status','active').eq('online_enabled', true).order('created_at',{ascending:false});
-      state.tenants = res.data || [];
-      document.getElementById('regTenant').innerHTML = ['<option value="">Орталық таңдаңыз</option>'].concat(
+        async function loadTenants(){
+      const [tenantRes, ownerRes] = await Promise.all([
+        sb.from('tenants').select('*').eq('status','active').eq('online_enabled', true).order('created_at',{ascending:false}),
+        sb.from('owner_controls').select('*').eq('opened', true)
+      ]);
+      const opened = new Set((ownerRes.data || []).map(x => x.tenant_id));
+      state.tenants = (tenantRes.data || []).filter(t => opened.has(t.id));
+      const select = document.getElementById('regTenant');
+      select.innerHTML = ['<option value="">Орталық таңдаңыз</option>'].concat(
         state.tenants.map(t=>`<option value="${t.id}">${esc(t.name)} — ${esc(t.city || '')}</option>`)
       ).join('');
     }
 
-    async function registerStudent(){
+        async function registerStudent(){
       clearAuthNotice();
       const fullName = document.getElementById('regName').value.trim();
       const phone = document.getElementById('regPhone').value.trim();
@@ -285,6 +290,46 @@
       const extraWho = document.getElementById('regExtraWho').value.trim();
       const password = document.getElementById('regPassword').value.trim();
       if(!fullName || !phone || !email || !tenantId || !password) return authNotice('Міндетті өрістерді толтырыңыз', 'err');
+
+      const tenantCheck = await sb
+        .from('tenants')
+        .select('id,name,status,online_enabled')
+        .eq('id', tenantId)
+        .eq('status', 'active')
+        .eq('online_enabled', true)
+        .limit(1)
+        .maybeSingle();
+
+      if(tenantCheck.error) return authNotice(tenantCheck.error.message, 'err');
+      if(!tenantCheck.data){
+        await loadTenants();
+        return authNotice('Орталық жарамсыз немесе қайта ашу керек. Тізімнен орталықты қайта таңдаңыз.', 'err');
+      }
+
+      const ownerCheck = await sb
+        .from('owner_controls')
+        .select('tenant_id,opened')
+        .eq('tenant_id', tenantId)
+        .eq('opened', true)
+        .limit(1)
+        .maybeSingle();
+
+      if(ownerCheck.error) return authNotice(ownerCheck.error.message, 'err');
+      if(!ownerCheck.data){
+        return authNotice('Бұл орталыққа online доступ Owner порталдан ашылмаған.', 'err');
+      }
+
+      const duplicateOnline = await sb
+        .from('online_students')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .eq('email', email)
+        .limit(1)
+        .maybeSingle();
+
+      if(duplicateOnline.data){
+        return authNotice('Бұл email осы орталықта бұрын тіркелген. Оқушы кіруін қолданып көріңіз.', 'err');
+      }
 
       const studentCode = randCode();
       const pinCode = randPin();
@@ -314,7 +359,10 @@
         password_plain: password,
         status: 'active'
       }).select().single();
-      if(onlineRes.error) return authNotice(onlineRes.error.message, 'err');
+      if(onlineRes.error) {
+        await sb.from('students').delete().eq('id', crmRes.data.id);
+        return authNotice(onlineRes.error.message, 'err');
+      }
 
       authNotice(`Тіркелу сәтті. Код: ${studentCode}, PIN: ${pinCode}`, 'ok');
     }
