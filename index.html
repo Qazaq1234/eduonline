@@ -4,9 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="icon" href="favicon.ico">
-  <title>EdukZ Online Premium</title>
+  <title>EdukZ Online Portal</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans:wght@400;500;700;800&display=swap");
 
     :root{
       --bg:#f6f8fc; --card:#ffffff; --line:#e8eef6; --text:#0f172a; --muted:#667085;
@@ -17,7 +18,7 @@
     html{-webkit-text-size-adjust:100%}
     body{
       margin:0;
-      font-family:Inter,Arial,sans-serif;
+      font-family:"Inter","Noto Sans","Segoe UI",Arial,sans-serif;
       background:
         radial-gradient(circle at top left, rgba(37,99,235,.05), transparent 22%),
         linear-gradient(180deg,#fbfdff 0%,var(--bg) 100%);
@@ -488,7 +489,7 @@
 
       document.getElementById('authView').classList.add('hidden');
       document.getElementById('portalView').classList.remove('hidden');
-      await loadStudentData();
+      await loadStudentData(false);
       applyLockedUi();
     }
 
@@ -498,6 +499,61 @@
       currentLesson = null;
       document.getElementById('portalView').classList.add('hidden');
       document.getElementById('authView').classList.remove('hidden');
+    }
+
+
+    async function loadDashboardMeta(){
+      if(!studentSession?.tenant_id || !studentSession?.crm_student_id) return;
+      const tenantId = studentSession.tenant_id;
+      const studentId = studentSession.crm_student_id;
+      const [courseCountRes, openCountRes, payRes] = await Promise.all([
+        sb.from('online_courses').select('*', {count:'exact', head:true}).eq('tenant_id', tenantId),
+        sb.from('online_enrollments').select('*', {count:'exact', head:true}).eq('crm_student_id', studentId).eq('access_status', 'active'),
+        sb.from('online_payments').select('amount').eq('crm_student_id', studentId).eq('status','approved').limit(100)
+      ]);
+      state.meta.courseCount = courseCountRes.count || 0;
+      state.meta.openCourseCount = openCountRes.count || 0;
+      state.meta.paymentAmount = (payRes.data || []).reduce((a,b)=>a + Number(b.amount || 0), 0);
+    }
+
+    async function loadSectionData(section, force=false){
+      if(!studentSession?.tenant_id || !studentSession?.crm_student_id) return;
+      const tenantId = studentSession.tenant_id;
+      const studentId = studentSession.crm_student_id;
+      if(section === 'dashboard'){
+        await loadDashboardMeta();
+        return;
+      }
+      if(!force && sectionCache[section]) return;
+
+      if(section === 'courses'){
+        const [coursesRes, payRes, enrollRes, reqRes] = await Promise.all([
+          sb.from('online_courses').select('*').eq('tenant_id', tenantId).order('created_at', {ascending:false}).limit(200),
+          sb.from('online_payments').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(200),
+          sb.from('online_enrollments').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(200),
+          sb.from('online_access_requests').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(200)
+        ]);
+        state.onlineCourses = coursesRes.data || [];
+        state.onlinePayments = payRes.data || [];
+        state.onlineEnrollments = enrollRes.data || [];
+        state.onlineRequests = reqRes.data || [];
+      } else if(section === 'lesson'){
+        const [coursesRes, modulesRes, lessonsRes, progressRes, enrollRes] = await Promise.all([
+          sb.from('online_courses').select('*').eq('tenant_id', tenantId).order('created_at', {ascending:false}).limit(200),
+          sb.from('online_modules').select('*').eq('tenant_id', tenantId).order('created_at', {ascending:false}).limit(300),
+          sb.from('online_lessons').select('*').eq('tenant_id', tenantId).order('created_at', {ascending:false}).limit(400),
+          sb.from('online_progress').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(400),
+          sb.from('online_enrollments').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(200)
+        ]);
+        state.onlineCourses = coursesRes.data || [];
+        state.onlineModules = modulesRes.data || [];
+        state.onlineLessons = lessonsRes.data || [];
+        state.onlineProgress = progressRes.data || [];
+        state.onlineEnrollments = enrollRes.data || [];
+      } else if(section === 'payments'){
+        state.onlinePayments = (await sb.from('online_payments').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(200)).data || [];
+      }
+      sectionCache[section] = true;
     }
 
     async function loadStudentData(){
@@ -578,7 +634,7 @@
       });
       if(payRes.error) return notice(payRes.error.message, 'err');
 
-      await loadStudentData();
+      await loadStudentData(true);
       notice('Сұраныс жіберілді. Енді CRM жақтан доступ ашылады.');
     }
 
@@ -619,7 +675,7 @@
         online_status: 'active'
       }).eq('id', crmStudent.id);
 
-      await loadStudentData();
+      await loadStudentData(true);
       renderLesson();
     }
 
@@ -645,7 +701,7 @@
           completed_at: new Date().toISOString()
         });
       }
-      await loadStudentData();
+      await loadStudentData(true);
       notice('Сабақ аяқталды деп белгіленді');
     }
 
@@ -785,3 +841,4 @@
   </script>
 </body>
 </html>
+
