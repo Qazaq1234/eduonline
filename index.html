@@ -260,6 +260,9 @@
             <div id="lessonTitle" style="font-size:22px;font-weight:900;margin-bottom:12px">Сабақ</div>
             <div id="lessonPlayer" class="video-box">Курс таңдаңыз</div>
             <div id="lessonMeta" style="margin-top:12px"></div>
+            <div id="lessonMaterial" style="margin-top:12px"></div>
+            <div id="lessonHomework" style="margin-top:12px"></div>
+            <div id="lessonTests" style="margin-top:12px"></div>
             <div id="lessonAction" style="margin-top:12px"></div>
           </div>
           <div class="card">
@@ -297,7 +300,7 @@
     let lockReason = '';
     let state = {
       tenants: [], onlineStudents: [], students: [], onlineCourses: [], onlineModules: [], onlineLessons: [],
-      onlinePayments: [], onlineProgress: [], onlineJournal: [], onlineEnrollments: [], onlineAccessRequests: []
+      onlinePayments: [], onlineProgress: [], onlineJournal: [], onlineEnrollments: [], onlineAccessRequests: [], onlineTests: [], homeworkSubmissions: []
     };
 
     const authBtns = document.querySelectorAll('.tab[data-auth]');
@@ -489,7 +492,7 @@
 
       document.getElementById('authView').classList.add('hidden');
       document.getElementById('portalView').classList.remove('hidden');
-      await loadStudentData(false);
+      await loadStudentData();
       applyLockedUi();
     }
 
@@ -499,61 +502,6 @@
       currentLesson = null;
       document.getElementById('portalView').classList.add('hidden');
       document.getElementById('authView').classList.remove('hidden');
-    }
-
-
-    async function loadDashboardMeta(){
-      if(!studentSession?.tenant_id || !studentSession?.crm_student_id) return;
-      const tenantId = studentSession.tenant_id;
-      const studentId = studentSession.crm_student_id;
-      const [courseCountRes, openCountRes, payRes] = await Promise.all([
-        sb.from('online_courses').select('*', {count:'exact', head:true}).eq('tenant_id', tenantId),
-        sb.from('online_enrollments').select('*', {count:'exact', head:true}).eq('crm_student_id', studentId).eq('access_status', 'active'),
-        sb.from('online_payments').select('amount').eq('crm_student_id', studentId).eq('status','approved').limit(100)
-      ]);
-      state.meta.courseCount = courseCountRes.count || 0;
-      state.meta.openCourseCount = openCountRes.count || 0;
-      state.meta.paymentAmount = (payRes.data || []).reduce((a,b)=>a + Number(b.amount || 0), 0);
-    }
-
-    async function loadSectionData(section, force=false){
-      if(!studentSession?.tenant_id || !studentSession?.crm_student_id) return;
-      const tenantId = studentSession.tenant_id;
-      const studentId = studentSession.crm_student_id;
-      if(section === 'dashboard'){
-        await loadDashboardMeta();
-        return;
-      }
-      if(!force && sectionCache[section]) return;
-
-      if(section === 'courses'){
-        const [coursesRes, payRes, enrollRes, reqRes] = await Promise.all([
-          sb.from('online_courses').select('*').eq('tenant_id', tenantId).order('created_at', {ascending:false}).limit(200),
-          sb.from('online_payments').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(200),
-          sb.from('online_enrollments').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(200),
-          sb.from('online_access_requests').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(200)
-        ]);
-        state.onlineCourses = coursesRes.data || [];
-        state.onlinePayments = payRes.data || [];
-        state.onlineEnrollments = enrollRes.data || [];
-        state.onlineRequests = reqRes.data || [];
-      } else if(section === 'lesson'){
-        const [coursesRes, modulesRes, lessonsRes, progressRes, enrollRes] = await Promise.all([
-          sb.from('online_courses').select('*').eq('tenant_id', tenantId).order('created_at', {ascending:false}).limit(200),
-          sb.from('online_modules').select('*').eq('tenant_id', tenantId).order('created_at', {ascending:false}).limit(300),
-          sb.from('online_lessons').select('*').eq('tenant_id', tenantId).order('created_at', {ascending:false}).limit(400),
-          sb.from('online_progress').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(400),
-          sb.from('online_enrollments').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(200)
-        ]);
-        state.onlineCourses = coursesRes.data || [];
-        state.onlineModules = modulesRes.data || [];
-        state.onlineLessons = lessonsRes.data || [];
-        state.onlineProgress = progressRes.data || [];
-        state.onlineEnrollments = enrollRes.data || [];
-      } else if(section === 'payments'){
-        state.onlinePayments = (await sb.from('online_payments').select('*').eq('crm_student_id', studentId).order('created_at', {ascending:false}).limit(200)).data || [];
-      }
-      sectionCache[section] = true;
     }
 
     async function loadStudentData(){
@@ -570,7 +518,9 @@
         sb.from('online_progress').select('*').eq('crm_student_id', crmStudentId).order('created_at',{ascending:false}),
         sb.from('online_journal').select('*').eq('crm_student_id', crmStudentId).order('created_at',{ascending:false}),
         sb.from('online_enrollments').select('*').eq('crm_student_id', crmStudentId).order('created_at',{ascending:false}),
-        sb.from('online_access_requests').select('*').eq('crm_student_id', crmStudentId).order('created_at',{ascending:false})
+        sb.from('online_access_requests').select('*').eq('crm_student_id', crmStudentId).order('created_at',{ascending:false}),
+        sb.from('online_tests').select('*').eq('tenant_id', tenantId).order('created_at',{ascending:false}),
+        sb.from('online_homework_submissions').select('*').eq('crm_student_id', crmStudentId).order('created_at',{ascending:false})
       ]);
       state.students = [results[0].data].filter(Boolean);
       state.tenants = [results[1].data].filter(Boolean);
@@ -582,6 +532,8 @@
       state.onlineJournal = results[7].data || [];
       state.onlineEnrollments = results[8].data || [];
       state.onlineAccessRequests = results[9].data || [];
+      state.onlineTests = results[10].data || [];
+      state.homeworkSubmissions = results[11].data || [];
 
       const tenant = state.tenants[0];
       const crm = state.students[0];
@@ -602,6 +554,59 @@
     }
     function requestedCourse(courseId){
       return state.onlineAccessRequests.find(x=>x.course_id === courseId);
+    }
+
+
+    async function uploadHomeworkFile(file){
+      if(!file) return { publicUrl: null };
+      const safe = (file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `homework-submissions/${studentSession.tenant_id}/${Date.now()}_${safe}`;
+      const up = await sb.storage.from('lesson-videos').upload(path, file, {
+        upsert: false,
+        contentType: file.type || 'application/octet-stream'
+      });
+      if(up.error) return { error: up.error };
+      const { data } = sb.storage.from('lesson-videos').getPublicUrl(path);
+      return { publicUrl: data.publicUrl };
+    }
+
+    function testsForLesson(lessonId){
+      return state.onlineTests.filter(x=>x.lesson_id === lessonId);
+    }
+
+    async function sendHomeworkSubmission(lessonId){
+      if(accessLocked) return notice(lockReason || 'Қарау режимі', 'err');
+      const crmStudent = state.students[0];
+      const lesson = state.onlineLessons.find(x=>x.id === lessonId);
+      if(!crmStudent || !lesson) return;
+      const fileInput = document.getElementById('studentHomeworkFile');
+      const note = document.getElementById('studentHomeworkNote')?.value?.trim() || '';
+      let fileUrl = '';
+
+      if(fileInput && fileInput.files && fileInput.files[0]){
+        notice('Үй тапсырмасы жүктеліп жатыр...', 'ok');
+        const uploaded = await uploadHomeworkFile(fileInput.files[0]);
+        if(uploaded.error) return notice(uploaded.error.message, 'err');
+        fileUrl = uploaded.publicUrl;
+      }
+
+      const res = await sb.from('online_homework_submissions').insert({
+        tenant_id: studentSession.tenant_id,
+        crm_student_id: crmStudent.id,
+        online_student_id: studentSession.id,
+        course_id: currentCourse,
+        lesson_id: lessonId,
+        student_name: crmStudent.full_name,
+        note,
+        file_url: fileUrl,
+        status: 'sent'
+      });
+      if(res.error) return notice(res.error.message, 'err');
+
+      if(document.getElementById('studentHomeworkNote')) document.getElementById('studentHomeworkNote').value = '';
+      if(fileInput) fileInput.value = '';
+      await loadStudentData();
+      notice('Үй тапсырмасы мұғалімге жіберілді');
     }
 
     async function requestCourse(courseId){
@@ -634,7 +639,7 @@
       });
       if(payRes.error) return notice(payRes.error.message, 'err');
 
-      await loadStudentData(true);
+      await loadStudentData();
       notice('Сұраныс жіберілді. Енді CRM жақтан доступ ашылады.');
     }
 
@@ -675,7 +680,7 @@
         online_status: 'active'
       }).eq('id', crmStudent.id);
 
-      await loadStudentData(true);
+      await loadStudentData();
       renderLesson();
     }
 
@@ -701,7 +706,7 @@
           completed_at: new Date().toISOString()
         });
       }
-      await loadStudentData(true);
+      await loadStudentData();
       notice('Сабақ аяқталды деп белгіленді');
     }
 
@@ -758,6 +763,9 @@
         document.getElementById('lessonTitle').textContent = 'Сабақ';
         document.getElementById('lessonPlayer').innerHTML = 'Курс таңдаңыз';
         document.getElementById('lessonMeta').innerHTML = '';
+        document.getElementById('lessonMaterial').innerHTML = '';
+        document.getElementById('lessonHomework').innerHTML = '';
+        document.getElementById('lessonTests').innerHTML = '';
         document.getElementById('lessonList').innerHTML = '';
         document.getElementById('lessonAction').innerHTML = '';
         return;
@@ -766,6 +774,9 @@
         document.getElementById('lessonTitle').textContent = course.title;
         document.getElementById('lessonPlayer').innerHTML = 'Доступ әлі ашылған жоқ';
         document.getElementById('lessonMeta').innerHTML = '<div class="notice err">CRM порталдан мұғалім/админ доступ ашуы керек.</div>';
+        document.getElementById('lessonMaterial').innerHTML = '';
+        document.getElementById('lessonHomework').innerHTML = '';
+        document.getElementById('lessonTests').innerHTML = '';
         document.getElementById('lessonList').innerHTML = '';
         document.getElementById('lessonAction').innerHTML = '';
         return;
@@ -779,6 +790,9 @@
       if(!lesson){
         document.getElementById('lessonPlayer').innerHTML = 'Сабақ жоқ';
         document.getElementById('lessonMeta').innerHTML = '';
+        document.getElementById('lessonMaterial').innerHTML = '';
+        document.getElementById('lessonHomework').innerHTML = '';
+        document.getElementById('lessonTests').innerHTML = '';
         document.getElementById('lessonList').innerHTML = '';
         document.getElementById('lessonAction').innerHTML = '';
         return;
@@ -788,32 +802,77 @@
         const id = ytId(lesson.youtube_url);
         document.getElementById('lessonPlayer').innerHTML = id ? `<iframe src="https://www.youtube-nocookie.com/embed/${id}" allowfullscreen></iframe>` : 'YouTube сілтеме қате';
       } else if(lesson.file_url){
-        if(/\.(mp4|webm|ogg)$/i.test(lesson.file_url)){
-          document.getElementById('lessonPlayer').innerHTML = `<video controls src="${esc(lesson.file_url)}"></video>`;
+        if(/\.(mp4|webm|ogg|mov|m4v)$/i.test(lesson.file_url)){
+          document.getElementById('lessonPlayer').innerHTML = `<video controls src="${lesson.file_url}"></video>`;
         } else {
-          document.getElementById('lessonPlayer').innerHTML = `<a href="${esc(lesson.file_url)}" target="_blank" style="color:#fff">Файл/сілтеме ашу</a>`;
+          document.getElementById('lessonPlayer').innerHTML = `<a href="${lesson.file_url}" target="_blank" style="color:#fff">Сабақ файлын ашу</a>`;
         }
       } else {
         document.getElementById('lessonPlayer').innerHTML = 'Видео жоқ';
       }
 
-      const prog = state.onlineProgress.find(x=>x.lesson_id === lesson.id);
+      const p = state.onlineProgress.find(x=>x.lesson_id === lesson.id);
+      const studentSubmission = state.homeworkSubmissions.find(x=>x.lesson_id === lesson.id);
+
       document.getElementById('lessonMeta').innerHTML = `
-        <strong>${esc(lesson.title)}</strong>
-        <div class="muted">Ұзақтығы: ${esc(lesson.duration || '—')} • Режим: ${esc(lesson.video_mode || '—')}</div>
-        <div class="muted">Статус: ${prog?.completed ? 'Аяқталды' : 'Оқып жатыр / ашу керек'}</div>
+        <div class="info-card"><strong>Сабақ</strong><div class="big">${esc(lesson.title)}</div></div>
+        <div class="info-card" style="margin-top:12px"><strong>Ұзақтығы</strong><div class="big">${esc(lesson.duration || '—')}</div></div>
+        <div class="info-card" style="margin-top:12px"><strong>Статус</strong><div class="big">${p?.completed ? 'Аяқталды' : 'Әлі оқылмады'}</div></div>
       `;
+
+      document.getElementById('lessonMaterial').innerHTML = `
+        <div class="course-card">
+          <div class="pill">Материал</div>
+          <h3 style="font-size:20px">${esc(lesson.material_title || 'Материал жоқ')}</h3>
+          <p class="muted">Түрі: ${esc(lesson.material_type || '—')}</p>
+          <div>${lesson.material_url ? `<a href="${lesson.material_url}" target="_blank">Материалды ашу</a>` : '<span class="muted">Материал тіркелмеген</span>'}</div>
+        </div>
+      `;
+
+      document.getElementById('lessonHomework').innerHTML = `
+        <div class="course-card">
+          <div class="pill">Үй тапсырмасы</div>
+          <p>${esc(lesson.homework_text || 'Үй тапсырмасы жоқ')}</p>
+          <p class="muted">Соңғы мерзім: ${esc(lesson.homework_due_date || '—')}</p>
+          <input id="studentHomeworkNote" class="input" placeholder="Ескертпе" style="margin-top:12px" />
+          <input id="studentHomeworkFile" class="input" type="file" style="margin-top:12px" />
+          <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn secondary" onclick="sendHomeworkSubmission('${lesson.id}')">Мұғалімге жіберу</button>
+            ${studentSubmission?.file_url ? `<a class="btn secondary" href="${studentSubmission.file_url}" target="_blank">Жіберілген файл</a>` : ''}
+          </div>
+        </div>
+      `;
+
+      const tests = testsForLesson(lesson.id);
+      document.getElementById('lessonTests').innerHTML = `
+        <div class="course-card">
+          <div class="pill">Тест</div>
+          ${tests.length ? tests.map((t,i)=>`
+            <div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:14px">
+              <div style="font-weight:800;margin-bottom:8px">${i+1}. ${esc(t.question || '')}</div>
+              <label style="display:block;margin:6px 0"><input type="radio" name="test_${t.id}" value="1"> ${esc(t.answer_1 || '')}</label>
+              <label style="display:block;margin:6px 0"><input type="radio" name="test_${t.id}" value="2"> ${esc(t.answer_2 || '')}</label>
+              <label style="display:block;margin:6px 0"><input type="radio" name="test_${t.id}" value="3"> ${esc(t.answer_3 || '')}</label>
+              <label style="display:block;margin:6px 0"><input type="radio" name="test_${t.id}" value="4"> ${esc(t.answer_4 || '')}</label>
+            </div>
+          `).join('') : '<div class="muted">Бұл сабаққа тест тіркелмеген</div>'}
+        </div>
+      `;
+
       document.getElementById('lessonAction').innerHTML = `
-        <button class="btn secondary" onclick="openLesson('${lesson.id}')">Сабақты ашу</button>
-        <button class="btn ok" onclick="markLessonCompleted('${lesson.id}')">Аяқталды</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn secondary" onclick="openLesson('${lesson.id}')">Ашу</button>
+          <button class="btn ok" onclick="markLessonCompleted('${lesson.id}')">Аяқталды</button>
+        </div>
       `;
 
       document.getElementById('lessonList').innerHTML = lessons.map(l=>{
-        const p = state.onlineProgress.find(x=>x.lesson_id === l.id);
-        return `<div class="course-card" style="margin-bottom:10px">
-          <strong>${esc(l.title)}</strong>
+        const lp = state.onlineProgress.find(p=>p.lesson_id === l.id);
+        return `<div class="course-card" style="margin-bottom:12px">
+          <div class="pill">Сабақ</div>
+          <h3 style="font-size:20px">${esc(l.title)}</h3>
           <div class="muted">Ұзақтығы: ${esc(l.duration || '—')}</div>
-          <div class="muted">Статус: ${p?.completed ? 'Аяқталды' : 'Әлі оқылмады'}</div>
+          <div class="muted">Статус: ${lp?.completed ? 'Аяқталды' : 'Әлі оқылмады'}</div>
           <div style="margin-top:10px"><button class="btn primary" onclick="currentLesson='${l.id}';renderLesson()">Ашу</button></div>
         </div>`;
       }).join('');
@@ -841,4 +900,3 @@
   </script>
 </body>
 </html>
-
