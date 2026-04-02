@@ -164,6 +164,12 @@
   </style>
 </head>
 <body>
+
+  <div class="lang-switch">
+    <button type="button" class="lang-btn" id="langKkBtn" onclick="setLang('kk')">Қаз</button>
+    <button type="button" class="lang-btn" id="langRuBtn" onclick="setLang('ru')">Рус</button>
+  </div>
+
   <div id="authView" class="auth-shell">
     <div class="panel hero">
       <h1>EdukZ Online Portal</h1>
@@ -315,14 +321,96 @@
       });
     });
 
+    
+    const LANG_KEY = 'edukz_lang_online';
+    let currentLang = localStorage.getItem(LANG_KEY) || 'kk';
+    const I18N_TEXTS = {"Оқушы тіркелуі": "Регистрация ученика", "Оқушы кіруі": "Вход ученика", "Аты": "Имя", "Телефон": "Телефон", "Email": "Email", "Қосымша кім ол": "Дополнительно кто это", "Құпия сөз": "Пароль", "Тіркелу": "Регистрация", "Кіру": "Войти", "Оқушы: —": "Ученик: —", "Орталық: —": "Центр: —", "Код: —": "Код: —", "Басты бет": "Главная", "Курстар": "Курсы", "Сабақ": "Урок", "Төлемдер": "Платежи", "Шығу": "Выход", "Менің кабинетим": "Мой кабинет", "Статус: —": "Статус: —", "Қысқаша": "Кратко", "Статус түсіндірмесі": "Пояснение статуса", "Курс сатып алғанда сұраныс CRM-ге кетеді. Мұғалім/админ CRM порталдан доступ ашқанша курс жабық тұрады.": "После покупки курса заявка уходит в CRM. Пока учитель/админ не откроет доступ из CRM-портала, курс будет закрыт.", "Оқушыға арналған live portal. Курс таңдау, төлем сұранысы, доступ күту, сабақ оқу және төлем статустарын көру.": "Live portal для ученика. Выбор курса, заявка на оплату, ожидание доступа, обучение и просмотр статусов оплаты.", "Student live version": "Студенческая live версия", "Курс таңдау және сұраныс": "Выбор курса и заявка", "Доступ ашылса осы жерден оқисыз": "Если доступ открыт, учитесь здесь", "Курс төлемдері мен статустары": "Платежи по курсам и статусы", "Сұраныс жіберу": "Отправить заявку", "Ашу": "Открыть", "Аяқталды": "Завершено", "Әлі оқылмады": "Еще не изучено", "Ашық": "Открыт", "Күтілуде": "Ожидается", "Төлем жоқ": "Нет платежей", "Сома": "Сумма", "Күні": "Дата", "Статус": "Статус", "Курс": "Курс"};
+
+    function tr(input){
+      if(input == null) return input;
+      const s = String(input);
+      for(const [kk, ru] of Object.entries(I18N_TEXTS)){
+        if(s === kk || s === ru) return currentLang === 'ru' ? ru : kk;
+      }
+      return s;
+    }
+    function applyPrefix(el, kk, ru){
+      if(!el || !el.textContent) return;
+      const val = el.textContent.replace(/^.*?:\s*/, '');
+      el.textContent = (currentLang === 'ru' ? ru : kk) + ': ' + val;
+    }
+    function replaceTextNodes(root){
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node;
+      while((node = walker.nextNode())){
+        const raw = node.nodeValue;
+        const trimmed = raw.trim();
+        if(!trimmed) continue;
+        const translated = tr(trimmed);
+        if(translated !== trimmed && raw === trimmed) node.nodeValue = translated;
+      }
+    }
+    function translatePlaceholders(){
+      document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el=>{
+        const val = el.getAttribute('placeholder');
+        el.setAttribute('placeholder', tr(val));
+      });
+      document.querySelectorAll('option').forEach(el=>{
+        const t = el.textContent.trim();
+        if(t) el.textContent = tr(t);
+      });
+    }
+    function translateTitleAndMeta(){
+      const tm = getTitleMap();
+      const active = document.querySelector('.nav-btn.active')?.dataset.section || 'dashboard';
+      if(tm[active]){
+        document.getElementById('pageTitle').textContent = tm[active][0];
+        document.getElementById('pageSub').textContent = tm[active][1];
+      }
+      document.title = currentLang === 'ru' ? 'EdukZ Онлайн Портал' : 'EdukZ Online Portal';
+    }
+    function updateLangButtons(){
+      document.getElementById('langKkBtn')?.classList.toggle('active', currentLang === 'kk');
+      document.getElementById('langRuBtn')?.classList.toggle('active', currentLang === 'ru');
+    }
+    function translateDynamicLabels(){
+      applyPrefix(document.getElementById('studentNameCard'), 'Оқушы', 'Ученик');
+      applyPrefix(document.getElementById('studentCenterCard'), 'Орталық', 'Центр');
+      applyPrefix(document.getElementById('studentCodeCard'), 'Код', 'Код');
+      applyPrefix(document.getElementById('centerChip'), 'Орталық', 'Центр');
+      applyPrefix(document.getElementById('statusChip'), 'Статус', 'Статус');
+    }
+    function applyLanguage(){
+      document.documentElement.lang = currentLang;
+      updateLangButtons();
+      translateTitleAndMeta();
+      translatePlaceholders();
+      replaceTextNodes(document.body);
+      translateDynamicLabels();
+    }
+    function setLang(lang){
+      currentLang = lang;
+      localStorage.setItem(LANG_KEY, lang);
+      applyLanguage();
+    }
+
     const navBtns = document.querySelectorAll('.nav-btn[data-section]');
     const sections = document.querySelectorAll('.section');
-    const titleMap = {
-      dashboard:['Басты бет','Менің кабинетим'],
-      courses:['Курстар','Курс таңдау және сұраныс'],
-      lesson:['Сабақ','Доступ ашылса осы жерден оқисыз'],
-      payments:['Төлемдер','Курс төлемдері мен статустары']
+    const TITLE_MAPS = {
+      kk:{
+        dashboard:['Басты бет','Менің кабинетим'],
+        courses:['Курстар','Курс таңдау және сұраныс'],
+        lesson:['Сабақ','Доступ ашылса осы жерден оқисыз'],
+        payments:['Төлемдер','Курс төлемдері мен статустары']
+      },
+      ru:{
+        dashboard:['Главная','Мой кабинет'],
+        courses:['Курсы','Выбор курса и заявка'],
+        lesson:['Урок','Если доступ открыт, учитесь здесь'],
+        payments:['Платежи','Платежи по курсам и статусы']
+      }
     };
+    function getTitleMap(){ return TITLE_MAPS[currentLang] || TITLE_MAPS.kk; }
     navBtns.forEach(btn=>{
       btn.addEventListener('click',()=>setSection(btn.dataset.section));
     });
@@ -330,21 +418,23 @@
     function setSection(id){
       navBtns.forEach(x=>x.classList.toggle('active', x.dataset.section === id));
       sections.forEach(s=>s.classList.toggle('active', s.id === id));
-      document.getElementById('pageTitle').textContent = titleMap[id][0];
-      document.getElementById('pageSub').textContent = titleMap[id][1];
+      const tm = getTitleMap();
+      document.getElementById('pageTitle').textContent = tm[id][0];
+      document.getElementById('pageSub').textContent = tm[id][1];
       renderAll();
+      applyLanguage();
     }
 
     function notice(msg, type='ok'){
       const el = document.getElementById('topNotice');
-      el.textContent = msg;
+      el.textContent = tr(msg);
       el.className = 'notice ' + type;
       el.classList.remove('hidden');
       setTimeout(()=>el.classList.add('hidden'), 2600);
     }
     function authNotice(msg, type='ok'){
       const el = document.getElementById('authNotice');
-      el.textContent = msg;
+      el.textContent = tr(msg);
       el.className = 'notice ' + type;
       el.classList.remove('hidden');
     }
@@ -537,11 +627,11 @@
 
       const tenant = state.tenants[0];
       const crm = state.students[0];
-      document.getElementById('studentNameCard').textContent = 'Оқушы: ' + (studentSession.full_name || '—');
-      document.getElementById('studentCenterCard').textContent = 'Орталық: ' + (tenant?.name || '—');
-      document.getElementById('studentCodeCard').textContent = 'Код: ' + (crm?.student_code || '—');
-      document.getElementById('centerChip').textContent = 'Орталық: ' + (tenant?.name || '—');
-      document.getElementById('statusChip').textContent = 'Статус: ' + (crm?.online_status || 'inactive');
+      document.getElementById('studentNameCard').textContent = (currentLang === 'ru' ? 'Ученик: ' : 'Оқушы: ') + (studentSession.full_name || '—');
+      document.getElementById('studentCenterCard').textContent = (currentLang === 'ru' ? 'Центр: ' : 'Орталық: ') + (tenant?.name || '—');
+      document.getElementById('studentCodeCard').textContent = (currentLang === 'ru' ? 'Код: ' : 'Код: ') + (crm?.student_code || '—');
+      document.getElementById('centerChip').textContent = (currentLang === 'ru' ? 'Центр: ' : 'Орталық: ') + (tenant?.name || '—');
+      document.getElementById('statusChip').textContent = (currentLang === 'ru' ? 'Статус: ' : 'Статус: ') + (crm?.online_status || 'inactive');
 
       if(!currentCourse && state.onlineCourses.length) currentCourse = state.onlineCourses[0].id;
       renderAll();
@@ -894,9 +984,12 @@
       renderCourses();
       renderLesson();
       renderPayments();
+      applyLanguage();
     }
 
     loadTenants();
+    applyLanguage();
   </script>
 </body>
 </html>
+
