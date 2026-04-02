@@ -153,6 +153,20 @@
       display:flex;align-items:center;justify-content:center;color:#fff
     }
     .video-box iframe,.video-box video{width:100%;height:100%;border:none;background:#000}
+    
+    .lang-switch{
+      position:fixed;top:14px;right:14px;z-index:90;
+      display:flex;gap:8px;background:rgba(255,255,255,.92);
+      border:1px solid var(--line);padding:8px;border-radius:16px;
+      box-shadow:0 10px 30px rgba(15,23,42,.12);backdrop-filter:blur(8px)
+    }
+    .lang-switch .lang-btn{
+      appearance:none;border:1px solid var(--line);background:#fff;color:var(--text);
+      border-radius:12px;padding:8px 12px;font:inherit;font-weight:800;cursor:pointer
+    }
+    .lang-switch .lang-btn.active{
+      background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;border-color:transparent
+    }
     @media (max-width:980px){
       .auth-shell{grid-template-columns:1fr}
       .shell{display:block}
@@ -332,7 +346,7 @@
       for(const [kk, ru] of Object.entries(I18N_TEXTS)){
         if(s === kk || s === ru) return currentLang === 'ru' ? ru : kk;
       }
-      return s;
+      return tr2(s);
     }
     function applyPrefix(el, kk, ru){
       if(!el || !el.textContent) return;
@@ -391,8 +405,99 @@
     function setLang(lang){
       currentLang = lang;
       localStorage.setItem(LANG_KEY, lang);
+      localStorage.setItem(ONLINE_LANG_KEY, lang);
       applyLanguage();
     }
+
+    
+    const ONLINE_LANG_KEY = 'edukz_lang_online_fixed';
+    currentLang = localStorage.getItem(ONLINE_LANG_KEY) || currentLang || 'kk';
+    const I18N_KK_RU = {"Оқушы тіркелуі": "Регистрация ученика", "Оқушы кіруі": "Вход ученика", "Аты": "Имя", "Телефон": "Телефон", "Email": "Email", "Қосымша кім ол": "Дополнительно кто это", "Құпия сөз": "Пароль", "Тіркелу": "Регистрация", "Кіру": "Войти", "Student live version": "Студенческая live версия", "Оқушы: —": "Ученик: —", "Орталық: —": "Центр: —", "Код: —": "Код: —", "Басты бет": "Главная", "Курстар": "Курсы", "Сабақ": "Урок", "Төлемдер": "Платежи", "Шығу": "Выход", "Менің кабинетим": "Мой кабинет", "Оқушыға арналған live portal. Курс таңдау, төлем сұранысы, доступ күту, сабақ оқу және төлем статустарын көру.": "Live portal для ученика. Выбор курса, заявка на оплату, ожидание доступа, обучение и просмотр статусов оплаты.", "Курс таңдау және сұраныс": "Выбор курса и заявка", "Доступ ашылса осы жерден оқисыз": "Если доступ открыт, учитесь здесь", "Курс төлемдері мен статустары": "Платежи по курсам и статусы", "Курс таңдау": "Выбор курса", "Төлем сұранысы": "Заявка на оплату", "Доступ күту": "Ожидание доступа", "Төлемдер тарихы": "История платежей", "Төлем жоқ": "Нет платежей", "Курс": "Курс", "Сома": "Сумма", "Күні": "Дата", "Статус": "Статус", "Ашық": "Открыт", "Күтілуде": "Ожидается", "Жабық": "Закрыт", "Сатып алу": "Купить", "Сұраныс жіберу": "Отправить заявку", "Сабақ жоқ": "Нет уроков", "Модуль жоқ": "Нет модулей", "Тест": "Тест", "Үй тапсырмасы": "Домашнее задание", "Материал": "Материал", "Жүктеу": "Загрузка", "Өту": "Пройти", "Аяқталды": "Завершено", "Әлі оқылмады": "Еще не изучено", "Дата": "Дата", "Менің прогресім": "Мой прогресс", "Менің курстарым": "Мои курсы", "Орталық": "Центр", "Статус: ": "Статус: ", "Тексеру": "Проверить", "Файл таңдау": "Выбрать файл", "Жүктеп жіберу": "Отправить", "Жауаптар": "Ответы", "Дұрыс жауап": "Правильный ответ", "Оқушы таңда": "Выберите ученика", "Курс таңда": "Выберите курс", "Модуль таңда": "Выберите модуль", "Сабақты таңда": "Выберите урок", "Қаз": "Қаз", "Рус": "Рус"};
+    const I18N_RU_KK = {"Регистрация ученика": "Оқушы тіркелуі", "Вход ученика": "Оқушы кіруі", "Имя": "Аты", "Телефон": "Телефон", "Email": "Email", "Дополнительно кто это": "Қосымша кім ол", "Пароль": "Құпия сөз", "Регистрация": "Тіркелу", "Войти": "Кіру", "Студенческая live версия": "Student live version", "Ученик: —": "Оқушы: —", "Центр: —": "Орталық: —", "Код: —": "Код: —", "Главная": "Басты бет", "Курсы": "Курстар", "Урок": "Сабақ", "Платежи": "Төлемдер", "Выход": "Шығу", "Мой кабинет": "Менің кабинетим", "Live portal для ученика. Выбор курса, заявка на оплату, ожидание доступа, обучение и просмотр статусов оплаты.": "Оқушыға арналған live portal. Курс таңдау, төлем сұранысы, доступ күту, сабақ оқу және төлем статустарын көру.", "Выбор курса и заявка": "Курс таңдау және сұраныс", "Если доступ открыт, учитесь здесь": "Доступ ашылса осы жерден оқисыз", "Платежи по курсам и статусы": "Курс төлемдері мен статустары", "Выбор курса": "Курс таңдау", "Заявка на оплату": "Төлем сұранысы", "Ожидание доступа": "Доступ күту", "История платежей": "Төлемдер тарихы", "Нет платежей": "Төлем жоқ", "Курс": "Курс", "Сумма": "Сома", "Дата": "Дата", "Статус": "Статус", "Открыт": "Ашық", "Ожидается": "Күтілуде", "Закрыт": "Жабық", "Купить": "Сатып алу", "Отправить заявку": "Сұраныс жіберу", "Нет уроков": "Сабақ жоқ", "Нет модулей": "Модуль жоқ", "Тест": "Тест", "Домашнее задание": "Үй тапсырмасы", "Материал": "Материал", "Загрузка": "Жүктеу", "Пройти": "Өту", "Завершено": "Аяқталды", "Еще не изучено": "Әлі оқылмады", "Мой прогресс": "Менің прогресім", "Мои курсы": "Менің курстарым", "Центр": "Орталық", "Статус: ": "Статус: ", "Проверить": "Тексеру", "Выбрать файл": "Файл таңдау", "Отправить": "Жүктеп жіберу", "Ответы": "Жауаптар", "Правильный ответ": "Дұрыс жауап", "Выберите ученика": "Оқушы таңда", "Выберите курс": "Курс таңда", "Выберите модуль": "Модуль таңда", "Выберите урок": "Сабақты таңда", "Қаз": "Қаз", "Рус": "Рус"};
+    let translateLock = false;
+    let translateTimer = null;
+    function tr2(text){
+      if(text == null) return text;
+      const s = String(text);
+      if(currentLang === 'ru') return I18N_KK_RU[s] || s;
+      return I18N_RU_KK[s] || s;
+    }
+    function preserveTranslate(raw){
+      if(raw == null) return raw;
+      const s = String(raw);
+      const trimmed = s.trim();
+      if(!trimmed) return s;
+      const t = tr2(trimmed);
+      if(t === trimmed) return s;
+      const left = s.match(/^\s*/)[0];
+      const right = s.match(/\s*$/)[0];
+      return left + t + right;
+    }
+    function translateOptionTexts(){
+      document.querySelectorAll('option').forEach(opt=>{ opt.textContent = preserveTranslate(opt.textContent); });
+    }
+    function translatePlaceholders(){
+      document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el=>{
+        const p = el.getAttribute('placeholder'); if(p) el.setAttribute('placeholder', tr2(p));
+      });
+    }
+    function translateNodes(root=document.body){
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(node){
+          if(!node.parentElement) return NodeFilter.FILTER_REJECT;
+          const tag = node.parentElement.tagName;
+          if(['SCRIPT','STYLE','TEXTAREA','OPTION'].includes(tag)) return NodeFilter.FILTER_REJECT;
+          const val = node.nodeValue;
+          if(!val || !val.trim()) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+      let node;
+      while((node = walker.nextNode())){
+        const next = preserveTranslate(node.nodeValue);
+        if(next !== node.nodeValue) node.nodeValue = next;
+      }
+    }
+    function updateLangButtons(){
+      document.getElementById('langKkBtn')?.classList.toggle('active', currentLang==='kk');
+      document.getElementById('langRuBtn')?.classList.toggle('active', currentLang==='ru');
+    }
+    function translatePrefixes(){
+      const a = document.getElementById('studentNameCard');
+      if(a && a.textContent) a.textContent = (currentLang==='ru' ? 'Ученик: ' : 'Оқушы: ') + a.textContent.replace(/^.*?:\s*/, '');
+      const b = document.getElementById('studentCenterCard');
+      if(b && b.textContent) b.textContent = (currentLang==='ru' ? 'Центр: ' : 'Орталық: ') + b.textContent.replace(/^.*?:\s*/, '');
+      const c = document.getElementById('studentCodeCard');
+      if(c && c.textContent) c.textContent = 'Код: ' + c.textContent.replace(/^.*?:\s*/, '');
+      const d = document.getElementById('centerChip');
+      if(d && d.textContent) d.textContent = (currentLang==='ru' ? 'Центр: ' : 'Орталық: ') + d.textContent.replace(/^.*?:\s*/, '');
+      const e = document.getElementById('statusChip');
+      if(e && e.textContent) e.textContent = (currentLang==='ru' ? 'Статус: ' : 'Статус: ') + preserveTranslate(e.textContent.replace(/^.*?:\s*/, ''));
+    }
+    function applyLanguage(){
+      if(translateLock) return;
+      translateLock = true;
+      try {
+        document.documentElement.lang = currentLang;
+        updateLangButtons();
+        translatePlaceholders();
+        translateOptionTexts();
+        translateNodes(document.body);
+        translatePrefixes();
+        const tm = getTitleMap();
+        const active = document.querySelector('.nav-btn.active')?.dataset.section || 'dashboard';
+        if(tm[active]) {
+          document.getElementById('pageTitle').textContent = tm[active][0];
+          document.getElementById('pageSub').textContent = tm[active][1];
+        }
+      } finally { translateLock = false; }
+    }
+    function scheduleTranslate(){
+      clearTimeout(translateTimer);
+      translateTimer = setTimeout(()=>applyLanguage(),30);
+    }
+    const mo = new MutationObserver(()=>scheduleTranslate());
+    window.addEventListener('DOMContentLoaded', ()=>{ mo.observe(document.body, {childList:true, subtree:true}); scheduleTranslate(); });
 
     const navBtns = document.querySelectorAll('.nav-btn[data-section]');
     const sections = document.querySelectorAll('.section');
@@ -422,19 +527,19 @@
       document.getElementById('pageTitle').textContent = tm[id][0];
       document.getElementById('pageSub').textContent = tm[id][1];
       renderAll();
-      applyLanguage();
+      scheduleTranslate();
     }
 
     function notice(msg, type='ok'){
       const el = document.getElementById('topNotice');
-      el.textContent = tr(msg);
+      el.textContent = preserveTranslate(tr(msg));
       el.className = 'notice ' + type;
       el.classList.remove('hidden');
       setTimeout(()=>el.classList.add('hidden'), 2600);
     }
     function authNotice(msg, type='ok'){
       const el = document.getElementById('authNotice');
-      el.textContent = tr(msg);
+      el.textContent = preserveTranslate(tr(msg));
       el.className = 'notice ' + type;
       el.classList.remove('hidden');
     }
@@ -582,6 +687,7 @@
 
       document.getElementById('authView').classList.add('hidden');
       document.getElementById('portalView').classList.remove('hidden');
+      scheduleTranslate();
       await loadStudentData();
       applyLockedUi();
     }
@@ -592,6 +698,7 @@
       currentLesson = null;
       document.getElementById('portalView').classList.add('hidden');
       document.getElementById('authView').classList.remove('hidden');
+      scheduleTranslate();
     }
 
     async function loadStudentData(){
@@ -984,12 +1091,11 @@
       renderCourses();
       renderLesson();
       renderPayments();
-      applyLanguage();
+      scheduleTranslate();
     }
 
     loadTenants();
-    applyLanguage();
+    scheduleTranslate();
   </script>
 </body>
 </html>
-
