@@ -137,6 +137,10 @@
       box-shadow:0 8px 22px rgba(15,23,42,.04)
     }
     .course-card h3{margin:12px 0 8px;font-size:24px;line-height:1.15;letter-spacing:-.02em}
+    .schedule-item{border:1px solid var(--line);border-radius:18px;padding:14px;background:linear-gradient(180deg,#fff 0%,#fbfdff 100%);box-shadow:0 8px 22px rgba(15,23,42,.04);margin-bottom:10px}
+    .schedule-item .t{font-size:14px;font-weight:900}
+    .schedule-item .m{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.45}
+    .schedule-empty{border:1px dashed var(--line);border-radius:18px;padding:16px;color:var(--muted);background:#fff}
     .course-card p{margin:8px 0;line-height:1.55}
     .info-card strong{
       display:block;
@@ -155,7 +159,8 @@
     .video-box iframe,.video-box video{width:100%;height:100%;border:none;background:#000}
     
     .lang-switch{
-      position:fixed;top:14px;right:14px;z-index:90;
+      position:fixed;top:14px;right:14px;z-index:9999;
+      opacity:1;visibility:visible;
       display:flex;gap:8px;background:rgba(255,255,255,.92);
       border:1px solid var(--line);padding:8px;border-radius:16px;
       box-shadow:0 10px 30px rgba(15,23,42,.12);backdrop-filter:blur(8px)
@@ -191,6 +196,7 @@
     </div>
 
     <div class="panel auth-card">
+      
       <div id="authNotice" class="notice hidden"></div>
       <div class="tabs">
         <button class="tab active" data-auth="register">Оқушы тіркелуі</button>
@@ -239,13 +245,14 @@
       <button class="nav-btn" data-section="courses">Курстар</button>
       <button class="nav-btn" data-section="lesson">Сабақ</button>
       <button class="nav-btn" data-section="payments">Төлемдер</button>
-      <button class="nav-btn" onclick="logout()">Шығу</button>
+      <button id="onlineLogoutBtn" class="nav-btn" onclick="logout()">Шығу</button>
     </aside>
 
     <main class="main">
       <div id="topNotice" class="notice hidden"></div>
       <div id="lockNotice" class="notice err hidden"></div>
       <div class="topbar card">
+        
         <div>
           <div id="pageTitle" style="font-size:30px;font-weight:900">Басты бет</div>
           <div id="pageSub" class="muted">Менің кабинетим</div>
@@ -273,6 +280,10 @@
       <section id="courses" class="section">
         <div class="grid g2" id="courseCards"></div>
       </section>
+
+
+      
+
 
       <section id="lesson" class="section">
         <div class="grid g2">
@@ -338,15 +349,13 @@
     
     const LANG_KEY = 'edukz_lang_online';
     let currentLang = localStorage.getItem(LANG_KEY) || 'kk';
-    const I18N_TEXTS = {"Оқушы тіркелуі": "Регистрация ученика", "Оқушы кіруі": "Вход ученика", "Аты": "Имя", "Телефон": "Телефон", "Email": "Email", "Қосымша кім ол": "Дополнительно кто это", "Құпия сөз": "Пароль", "Тіркелу": "Регистрация", "Кіру": "Войти", "Оқушы: —": "Ученик: —", "Орталық: —": "Центр: —", "Код: —": "Код: —", "Басты бет": "Главная", "Курстар": "Курсы", "Сабақ": "Урок", "Төлемдер": "Платежи", "Шығу": "Выход", "Менің кабинетим": "Мой кабинет", "Статус: —": "Статус: —", "Қысқаша": "Кратко", "Статус түсіндірмесі": "Пояснение статуса", "Курс сатып алғанда сұраныс CRM-ге кетеді. Мұғалім/админ CRM порталдан доступ ашқанша курс жабық тұрады.": "После покупки курса заявка уходит в CRM. Пока учитель/админ не откроет доступ из CRM-портала, курс будет закрыт.", "Оқушыға арналған live portal. Курс таңдау, төлем сұранысы, доступ күту, сабақ оқу және төлем статустарын көру.": "Live portal для ученика. Выбор курса, заявка на оплату, ожидание доступа, обучение и просмотр статусов оплаты.", "Student live version": "Студенческая live версия", "Курс таңдау және сұраныс": "Выбор курса и заявка", "Доступ ашылса осы жерден оқисыз": "Если доступ открыт, учитесь здесь", "Курс төлемдері мен статустары": "Платежи по курсам и статусы", "Сұраныс жіберу": "Отправить заявку", "Ашу": "Открыть", "Аяқталды": "Завершено", "Әлі оқылмады": "Еще не изучено", "Ашық": "Открыт", "Күтілуде": "Ожидается", "Төлем жоқ": "Нет платежей", "Сома": "Сумма", "Күні": "Дата", "Статус": "Статус", "Курс": "Курс"};
+    const I18N_TEXTS = {"Кесте": "Расписание", "Апталық сабақтар": "Занятия на неделю", "Бүгінгі online сабақтар": "Сегодняшние online занятия", "Апталық online кесте": "Недельное online расписание", "Бүгін online сабақ жоқ": "Сегодня нет online занятий", "Бұл аптаға online кесте жоқ": "На эту неделю нет online расписания", "Сабаққа өту": "Перейти к уроку", "Кіру": "Войти", "Расписание": "Кесте", "Занятия на неделю": "Апталық сабақтар", "Сегодняшние online занятия": "Бүгінгі online сабақтар", "Недельное online расписание": "Апталық online кесте", "Сегодня нет online занятий": "Бүгін online сабақ жоқ", "На эту неделю нет online расписания": "Бұл аптаға online кесте жоқ", "Перейти к уроку": "Сабаққа өту", "Войти": "Кіру", "Оқушы тіркелуі": "Регистрация ученика", "Оқушы кіруі": "Вход ученика", "Аты": "Имя", "Телефон": "Телефон", "Email": "Email", "Қосымша кім ол": "Дополнительно кто это", "Құпия сөз": "Пароль", "Тіркелу": "Регистрация", "Кіру": "Войти", "Оқушы: —": "Ученик: —", "Орталық: —": "Центр: —", "Код: —": "Код: —", "Басты бет": "Главная", "Курстар": "Курсы", "Сабақ": "Урок", "Төлемдер": "Платежи", "Шығу": "Выход", "Менің кабинетим": "Мой кабинет", "Статус: —": "Статус: —", "Қысқаша": "Кратко", "Статус түсіндірмесі": "Пояснение статуса", "Курс сатып алғанда сұраныс CRM-ге кетеді. Мұғалім/админ CRM порталдан доступ ашқанша курс жабық тұрады.": "После покупки курса заявка уходит в CRM. Пока учитель/админ не откроет доступ из CRM-портала, курс будет закрыт.", "Оқушыға арналған live portal. Курс таңдау, төлем сұранысы, доступ күту, сабақ оқу және төлем статустарын көру.": "Live portal для ученика. Выбор курса, заявка на оплату, ожидание доступа, обучение и просмотр статусов оплаты.", "Student live version": "Студенческая live версия", "Курс таңдау және сұраныс": "Выбор курса и заявка", "Доступ ашылса осы жерден оқисыз": "Если доступ открыт, учитесь здесь", "Курс төлемдері мен статустары": "Платежи по курсам и статусы", "Сұраныс жіберу": "Отправить заявку", "Ашу": "Открыть", "Аяқталды": "Завершено", "Әлі оқылмады": "Еще не изучено", "Ашық": "Открыт", "Күтілуде": "Ожидается", "Төлем жоқ": "Нет платежей", "Сома": "Сумма", "Күні": "Дата", "Статус": "Статус", "Курс": "Курс"};
 
     function tr(input){
       if(input == null) return input;
       const s = String(input);
-      for(const [kk, ru] of Object.entries(I18N_TEXTS)){
-        if(s === kk || s === ru) return currentLang === 'ru' ? ru : kk;
-      }
-      return tr2(s);
+      if(currentLang === 'ru') return I18N_KK_RU[s] || s;
+      return I18N_RU_KK[s] || s;
     }
     function applyPrefix(el, kk, ru){
       if(!el || !el.textContent) return;
@@ -394,13 +403,37 @@
       applyPrefix(document.getElementById('centerChip'), 'Орталық', 'Центр');
       applyPrefix(document.getElementById('statusChip'), 'Статус', 'Статус');
     }
-    function applyLanguage(){
-      document.documentElement.lang = currentLang;
-      updateLangButtons();
-      translateTitleAndMeta();
-      translatePlaceholders();
-      replaceTextNodes(document.body);
-      translateDynamicLabels();
+    function applyLanguage(force=false){
+      if(translateLock && !force) return;
+      translateLock = true;
+      try {
+        document.documentElement.lang = currentLang;
+        updateLangButtons();
+        translatePlaceholders();
+        translateOptionTexts();
+        translateStaticTextNodes(document.body);
+        const navMap = {
+          dashboard:{kk:'Басты бет',ru:'Главная'},
+          courses:{kk:'Курстар',ru:'Курсы'},
+          lesson:{kk:'Сабақ',ru:'Урок'},
+          payments:{kk:'Төлемдер',ru:'Платежи'}
+        };
+        document.querySelectorAll('.nav-btn[data-section]').forEach(btn=>{
+          const key=btn.dataset.section; const row=navMap[key];
+          if(row) btn.textContent = currentLang==='ru' ? row.ru : row.kk;
+        });
+        const logoutBtn = document.getElementById('onlineLogoutBtn');
+        if(logoutBtn) logoutBtn.textContent = currentLang === 'ru' ? 'Выход' : 'Шығу';
+        translatePrefixes();
+        const tm = getTitleMap();
+        const active = document.querySelector('.nav-btn.active')?.dataset.section || 'dashboard';
+        if(tm[active]){
+          document.getElementById('pageTitle').textContent = tm[active][0];
+          document.getElementById('pageSub').textContent = tm[active][1];
+        }
+      } finally {
+        translateLock = false;
+      }
     }
     function setLang(lang){
       currentLang = lang;
@@ -424,14 +457,14 @@
     }
     function preserveTranslate(raw){
       if(raw == null) return raw;
-      const s = String(raw);
-      const trimmed = s.trim();
-      if(!trimmed) return s;
-      const t = tr2(trimmed);
-      if(t === trimmed) return s;
-      const left = s.match(/^\s*/)[0];
-      const right = s.match(/\s*$/)[0];
-      return left + t + right;
+      let s = String(raw);
+      const map = currentLang === 'ru' ? I18N_KK_RU : I18N_RU_KK;
+      const keys = Object.keys(map).sort((a,b)=>b.length-a.length);
+      for(const key of keys){
+        if(!key) continue;
+        s = s.split(key).join(map[key]);
+      }
+      return s;
     }
     function translateOptionTexts(){
       document.querySelectorAll('option').forEach(opt=>{ opt.textContent = preserveTranslate(opt.textContent); });
@@ -462,6 +495,25 @@
       document.getElementById('langKkBtn')?.classList.toggle('active', currentLang==='kk');
       document.getElementById('langRuBtn')?.classList.toggle('active', currentLang==='ru');
     }
+    function translateStaticTextNodes(root=document.body){
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(node){
+          if(!node.parentElement) return NodeFilter.FILTER_REJECT;
+          const tag = node.parentElement.tagName;
+          if(['SCRIPT','STYLE','TEXTAREA','OPTION'].includes(tag)) return NodeFilter.FILTER_REJECT;
+          if(node.parentElement.closest('script,style')) return NodeFilter.FILTER_REJECT;
+          const val = node.nodeValue;
+          if(!val || !val.trim()) return NodeFilter.FILTER_REJECT;
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+      let node;
+      while((node = walker.nextNode())){
+        const next = preserveTranslate(node.nodeValue);
+        if(next !== node.nodeValue) node.nodeValue = next;
+      }
+    }
+
     function translatePrefixes(){
       const a = document.getElementById('studentNameCard');
       if(a && a.textContent) a.textContent = (currentLang==='ru' ? 'Ученик: ' : 'Оқушы: ') + a.textContent.replace(/^.*?:\s*/, '');
@@ -496,8 +548,7 @@
       clearTimeout(translateTimer);
       translateTimer = setTimeout(()=>applyLanguage(),30);
     }
-    const mo = new MutationObserver(()=>scheduleTranslate());
-    window.addEventListener('DOMContentLoaded', ()=>{ mo.observe(document.body, {childList:true, subtree:true}); scheduleTranslate(); });
+    window.addEventListener('DOMContentLoaded', ()=>{ scheduleTranslate(); });
 
     const navBtns = document.querySelectorAll('.nav-btn[data-section]');
     const sections = document.querySelectorAll('.section');
@@ -519,6 +570,7 @@
     navBtns.forEach(btn=>{
       btn.addEventListener('click',()=>setSection(btn.dataset.section));
     });
+    document.getElementById('onlineLogoutBtn')?.addEventListener('click', ()=>logout());
 
     function setSection(id){
       navBtns.forEach(x=>x.classList.toggle('active', x.dataset.section === id));
@@ -907,6 +959,7 @@
       notice('Сабақ аяқталды деп белгіленді');
     }
 
+    
     function renderDashboard(){
       const approved = state.onlineCourses.filter(c=>approvedCourse(c.id)).length;
       const pending = state.onlineCourses.filter(c=>requestedCourse(c.id) && !approvedCourse(c.id)).length;
